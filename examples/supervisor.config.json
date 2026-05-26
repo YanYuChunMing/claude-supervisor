@@ -1,0 +1,30 @@
+{
+  "claudeCommand": "claude",
+  "permissionMode": "acceptEdits",
+  "allowedTools": [
+    "Read",
+    "Edit",
+    "Bash(git status *)",
+    "Bash(git diff *)",
+    "Bash(npm test *)",
+    "Bash(npm run *)",
+    "Bash(pnpm test *)",
+    "Bash(pnpm run *)"
+  ],
+  "stages": {
+    "stage-001": {
+      "promptFile": "CLAUDE_PROMPT.md",
+      "timeoutMinutes": 30,
+      "testCommands": ["npm test"]
+    }
+  },
+  "pathPolicy": {
+    "allowedPaths": ["src/**", "test/**", "tests/**", "docs/**", "README.md", "package.json"],
+    "blockedPaths": [".env", ".env.*", "secrets/**", ".git/**"],
+    "sensitivePaths": ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "docker-compose.yml"]
+  },
+  "limits": {
+    "maxChangedFiles": 30,
+    "maxDiffLines": 1200
+  }
+}

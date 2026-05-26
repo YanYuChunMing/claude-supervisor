@@ -1,0 +1,16 @@
+{
+  "name": "claude-supervisor",
+  "version": "0.1.0",
+  "description": "Stage-based supervisor CLI for running Claude Code and returning review artifacts.",
+  "type": "module",
+  "bin": {
+    "claude-supervisor": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,5 @@
+.supervisor/
+coverage/
+npm-debug.log*
+.env
+.env.*

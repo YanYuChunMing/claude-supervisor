@@ -15,6 +15,15 @@
     "stage-001": {
       "promptFile": "CLAUDE_PROMPT.md",
       "timeoutMinutes": 30,
+      "requireChanges": true,
+      "requiredChangedPaths": ["src/**", "test/**", "tests/**"],
+      "expectedArtifacts": ["HANDOFF.md"],
+      "failureLogPatterns": [
+        "It looks like you typed",
+        "requires your approval",
+        "I need permission",
+        "Could you clarify"
+      ],
       "testCommands": ["npm test"]
     }
   },

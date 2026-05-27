@@ -1,4 +1,4 @@
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { access, mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { loadConfig, getStage } from './config.js';
 import { runCommand, runShellCommand } from './processUtils.js';
@@ -11,12 +11,28 @@ function makeRunId(stageName, now = new Date()) {
   return `${stamp}-${stageName}`;
 }
 
-function buildClaudeArgs(config, prompt) {
+function buildClaudeArgs(config, promptFile, project) {
+  const prompt = `Read and follow the supervisor stage prompt file. Prompt file path: ${promptFile}. Project path: ${project}. Work only inside the project path.`;
   const args = ['-p', prompt, '--permission-mode', config.permissionMode];
   if (config.allowedTools?.length) {
     args.push('--allowedTools', config.allowedTools.join(','));
   }
   return args;
+}
+
+async function findMissingArtifacts(project, artifacts = []) {
+  const missing = [];
+
+  for (const artifact of artifacts) {
+    const artifactPath = path.resolve(project, artifact);
+    try {
+      await access(artifactPath);
+    } catch {
+      missing.push(artifact);
+    }
+  }
+
+  return missing;
 }
 
 async function runTests(projectDir, commands, testsLog) {
@@ -45,13 +61,22 @@ export async function runStage({ projectDir, stageName }) {
   const claudeLog = path.join(runDir, 'claude.log');
   const testsLog = path.join(runDir, 'tests.log');
   const diffFile = path.join(runDir, 'diff.patch');
+  const effectivePromptFile = path.join(runDir, 'effective-prompt.md');
 
   const prompt = await readFile(stage.promptFile, 'utf8');
+  await writeFile(effectivePromptFile, prompt);
+
   let claudeOutput = '';
-  const claudeResult = await runCommand(config.claudeCommand, buildClaudeArgs(config, prompt), {
+  const claudeResult = await runCommand(config.claudeCommand, buildClaudeArgs(config, effectivePromptFile, project), {
     cwd: project,
     shell: process.platform === 'win32',
     timeoutMs: stage.timeoutMinutes * 60 * 1000,
+    env: {
+      SUPERVISOR_PROJECT_DIR: project,
+      SUPERVISOR_RUN_DIR: runDir,
+      SUPERVISOR_STAGE: stageName,
+      SUPERVISOR_PROMPT_FILE: effectivePromptFile
+    },
     onStdout: (text) => {
       claudeOutput += text;
     },
@@ -68,16 +93,26 @@ export async function runStage({ projectDir, stageName }) {
   await writeFile(diffFile, gitStatus.diff.stdout);
 
   const policyResult = evaluatePathPolicy(gitStatus.changedFiles, config.pathPolicy);
+  const missingExpectedArtifacts = await findMissingArtifacts(project, stage.expectedArtifacts);
   const decision = decideStatus({
     testsPassed,
     timedOut: claudeResult.timedOut,
     claudeExitCode: claudeResult.exitCode,
     policyResult,
+    changedFiles: gitStatus.changedFiles,
     changedFilesCount: gitStatus.changedFiles.length,
     diffLineCount: gitStatus.diffLineCount,
     limits: config.limits,
-    requireChanges: stage.requireChanges
+    requireChanges: stage.requireChanges,
+    requiredChangedPaths: stage.requiredChangedPaths,
+    expectedArtifacts: stage.expectedArtifacts,
+    missingExpectedArtifacts,
+    claudeLog: claudeOutput,
+    failureLogPatterns: stage.failureLogPatterns
   });
+
+  const failedGates = decision.gateResults.filter((gate) => gate.status === 'failed');
+  const blockedGates = failedGates.filter((gate) => gate.severity === 'block');
 
   const summary = {
     ok: decision.ok,
@@ -91,6 +126,8 @@ export async function runStage({ projectDir, stageName }) {
     changedFiles: gitStatus.changedFiles.length,
     pathViolations: policyResult.pathViolations.length,
     sensitiveChanges: policyResult.sensitiveChanges.length,
+    failedGates: failedGates.length,
+    blockedGates: blockedGates.length,
     reviewFile: path.join(runDir, 'REVIEW_REQUEST.md'),
     statusFile: path.join(runDir, 'status.json'),
     diffFile,
@@ -109,7 +146,13 @@ export async function runStage({ projectDir, stageName }) {
     logs: {
       claudeLog,
       testsLog,
-      diffFile
+      diffFile,
+      effectivePromptFile
+    },
+    gateResults: decision.gateResults,
+    expectedArtifacts: {
+      configured: stage.expectedArtifacts,
+      missing: missingExpectedArtifacts
     }
   };
 

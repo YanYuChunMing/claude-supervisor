@@ -20,6 +20,14 @@ Each target project must define `supervisor.config.json` at its root.
       "promptFile": "CLAUDE_PROMPT.md",
       "timeoutMinutes": 30,
       "requireChanges": true,
+      "requiredChangedPaths": ["src/**", "test/**"],
+      "expectedArtifacts": ["HANDOFF.md"],
+      "failureLogPatterns": [
+        "It looks like you typed",
+        "requires your approval",
+        "I need permission",
+        "Could you clarify"
+      ],
       "testCommands": ["npm test"]
     }
   },
@@ -60,7 +68,20 @@ Each stage supports:
 - `promptFile`: prompt file path relative to the target project root.
 - `timeoutMinutes`: maximum runtime for the Claude process.
 - `requireChanges`: whether zero changed files should force `needs_review`. Default: `true`.
+- `requiredChangedPaths`: glob patterns that must each match at least one changed file. Missing matches force `needs_review`.
+- `expectedArtifacts`: project-root relative files that must exist after the stage. Missing files force `needs_review`.
+- `failureLogPatterns`: case-insensitive strings searched in `claude.log`. Matches force `needs_review`.
 - `testCommands`: shell commands run after Claude exits.
+
+The supervisor writes the full stage prompt to `.supervisor/runs/<runId>/effective-prompt.md`.
+Claude receives a short `-p` instruction that points to that file, avoiding fragile multi-line prompt transport through the command line.
+
+Claude receives these environment variables:
+
+- `SUPERVISOR_PROJECT_DIR`
+- `SUPERVISOR_RUN_DIR`
+- `SUPERVISOR_STAGE`
+- `SUPERVISOR_PROMPT_FILE`
 
 ### `pathPolicy`
 
@@ -80,6 +101,21 @@ Controls diff size risk thresholds.
 - `maxDiffLines`
 
 Exceeding either threshold returns `needs_review`.
+
+## Gate Results
+
+Each run writes `gateResults` into `status.json` and `REVIEW_REQUEST.md`.
+
+Every gate has:
+
+- `name`
+- `status`: `passed` or `failed`
+- `severity`: `block` or `review`
+- `evidence`
+
+Any failed `block` gate returns `blocked`.
+Any failed `review` gate returns `needs_review`.
+Only fully passed gates return `passed`.
 
 ## Recommended Policy Defaults
 

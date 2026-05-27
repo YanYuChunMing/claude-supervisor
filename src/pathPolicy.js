@@ -28,7 +28,7 @@ function globToRegex(pattern) {
   return new RegExp(regex);
 }
 
-function matchesAny(file, patterns = []) {
+export function matchesAny(file, patterns = []) {
   const normalized = normalizeGitPath(file);
   return patterns.some((pattern) => globToRegex(pattern).test(normalized));
 }

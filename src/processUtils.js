@@ -20,7 +20,7 @@ export function runCommand(command, args = [], options = {}) {
     cwd,
     timeoutMs,
     input,
-    env = process.env,
+    env = {},
     shell = false,
     onStdout,
     onStderr
@@ -33,7 +33,7 @@ export function runCommand(command, args = [], options = {}) {
 
     const child = spawn(spawnTarget.command, spawnTarget.args, {
       cwd,
-      env,
+      env: { ...process.env, ...env },
       shell: shell && process.platform !== 'win32',
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe']

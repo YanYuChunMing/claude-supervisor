@@ -6,6 +6,7 @@ You are the execution agent for this repository. Execute only the current stage.
 
 Read these files before making changes:
 
+- The supervisor stage prompt file referenced by the command you received
 - `TASKS.md`
 - `TEST_PLAN.md`
 - `AGENT_RULES.md`
@@ -22,7 +23,8 @@ Read these files before making changes:
 6. Do not delete large file sets.
 7. Do not make unrelated refactors.
 8. Do not change public API contracts unless this stage explicitly requires it.
-9. Stop after the current stage.
+9. If you cannot edit, need approval, or cannot understand the stage, append the blocker to `HANDOFF.md` and stop.
+10. Stop after the current stage.
 
 ## Feature Block Debug/Test Rule
 

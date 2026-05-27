@@ -65,9 +65,19 @@ node D:\AAA_MY\AAAMyGit\claude-supervisor\src\cli.js run --project <project-path
 ```
 
 10. Read stdout JSON and all linked artifacts.
-11. If `blocked`, stop and inspect.
-12. If `needs_review`, inspect diff, logs, and tests before sending rework.
-13. If `passed`, still review diff and `HANDOFF.md` before moving to the next stage.
+11. Read `status.json` and inspect every item in `gateResults`.
+12. If `blocked`, stop and inspect.
+13. If `needs_review`, inspect diff, logs, tests, and failed gates before sending rework.
+14. If `passed`, still review diff, `HANDOFF.md`, and gate evidence before moving to the next stage.
+
+## Gate Review Requirements
+
+- Do not approve a stage by stdout summary alone.
+- Treat `gateResults` as the structured checklist for review.
+- Confirm `requiredChangedPaths` matched the intended implementation area.
+- Confirm `expectedArtifacts` such as `HANDOFF.md` exist and contain stage-specific evidence.
+- Confirm `failureLogPatterns` did not catch approval prompts, prompt parsing failures, or no-op behavior.
+- If Claude made no meaningful implementation change, send a narrower corrective stage or explicitly switch Codex into direct implementation mode.
 
 ## Bug Fix Constraints
 

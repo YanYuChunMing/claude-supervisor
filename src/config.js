@@ -57,6 +57,9 @@ export async function loadConfig(projectDir) {
       timeoutMinutes: 30,
       testCommands: [],
       requireChanges: true,
+      requiredChangedPaths: [],
+      expectedArtifacts: [],
+      failureLogPatterns: [],
       ...stage,
       promptFile: path.resolve(root, stage.promptFile)
     };

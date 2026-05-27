@@ -8,8 +8,8 @@ import { runCommand } from '../src/processUtils.js';
 async function writeFakeClaude(dir) {
   const scriptPath = path.join(dir, process.platform === 'win32' ? 'fake-claude.cmd' : 'fake-claude');
   const content = process.platform === 'win32'
-    ? '@echo off\r\necho fake claude ran\r\necho updated> src\\app.js\r\nexit /b 0\r\n'
-    : '#!/usr/bin/env sh\necho fake claude ran\necho updated > src/app.js\nexit 0\n';
+    ? '@echo off\r\necho fake claude ran\r\necho %SUPERVISOR_STAGE%> env-stage.txt\r\necho %SUPERVISOR_PROMPT_FILE%> env-prompt-file.txt\r\necho %*> args.txt\r\necho updated> src\\app.js\r\nexit /b 0\r\n'
+    : '#!/usr/bin/env sh\necho fake claude ran\necho "$SUPERVISOR_STAGE" > env-stage.txt\necho "$SUPERVISOR_PROMPT_FILE" > env-prompt-file.txt\necho "$*" > args.txt\necho updated > src/app.js\nexit 0\n';
 
   await writeFile(scriptPath, content);
   if (process.platform !== 'win32') {
@@ -27,7 +27,7 @@ test('CLI run prints JSON summary and writes review artifacts', async () => {
   await runCommand('git', ['config', 'user.name', 'Test User'], { cwd: projectDir });
   await mkdir(path.join(projectDir, 'src'));
   await writeFile(path.join(projectDir, 'src', 'app.js'), 'initial\n');
-  await writeFile(path.join(projectDir, 'CLAUDE_PROMPT.md'), 'edit src/app.js');
+  await writeFile(path.join(projectDir, 'CLAUDE_PROMPT.md'), 'edit src/app.js\nthis is a multiline prompt that must not be passed raw\n');
   await writeFile(path.join(projectDir, 'supervisor.config.json'), JSON.stringify({
     claudeCommand: fakeClaude,
     permissionMode: 'acceptEdits',
@@ -41,7 +41,7 @@ test('CLI run prints JSON summary and writes review artifacts', async () => {
       }
     },
     pathPolicy: {
-      allowedPaths: ['src/**'],
+      allowedPaths: ['src/**', 'env-stage.txt', 'env-prompt-file.txt', 'args.txt'],
       blockedPaths: ['.env', '.env.*', 'secrets/**', '.git/**'],
       sensitivePaths: []
     },
@@ -62,6 +62,17 @@ test('CLI run prints JSON summary and writes review artifacts', async () => {
   assert.equal(result.exitCode, 0, result.stderr || result.stdout);
   assert.ok(['passed', 'needs_review', 'blocked'].includes(summary.status));
   assert.equal(typeof summary.ok, 'boolean');
+  assert.equal(summary.failedGates, 0);
+  assert.equal(summary.blockedGates, 0);
+  const effectivePrompt = await readFile(path.join(summary.runDir, 'effective-prompt.md'), 'utf8');
+  const envStage = (await readFile(path.join(projectDir, 'env-stage.txt'), 'utf8')).trim();
+  const envPromptFile = (await readFile(path.join(projectDir, 'env-prompt-file.txt'), 'utf8')).trim();
+  const args = await readFile(path.join(projectDir, 'args.txt'), 'utf8');
+  assert.match(effectivePrompt, /multiline prompt/);
+  assert.equal(envStage, 'stage-001');
+  assert.equal(envPromptFile, path.join(summary.runDir, 'effective-prompt.md'));
+  assert.doesNotMatch(args, /this is a multiline prompt that must not be passed raw/);
+  assert.match(args, /effective-prompt\.md/);
   const review = await readFile(summary.reviewFile, 'utf8');
   assert.match(review, /# Review Request/);
 });

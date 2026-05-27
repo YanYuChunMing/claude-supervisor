@@ -32,4 +32,7 @@ test('loadConfig resolves stage prompt paths relative to project root', async ()
   assert.equal(config.stages['stage-001'].promptFile, path.join(projectDir, 'CLAUDE_PROMPT.md'));
   assert.equal(config.stages['stage-001'].timeoutMinutes, 5);
   assert.equal(config.stages['stage-001'].requireChanges, true);
+  assert.deepEqual(config.stages['stage-001'].requiredChangedPaths, []);
+  assert.deepEqual(config.stages['stage-001'].expectedArtifacts, []);
+  assert.deepEqual(config.stages['stage-001'].failureLogPatterns, []);
 });
